@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Question Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style id="app-style">
+/* Layout: one warm reading column with the question thread as a side rail; tactile, rounded controls that respond to every choice. */
+:root{
+  --bg:#FFF5EA; --surface:#FFFFFF; --ink:#2B2238; --muted:#7B6F84; --line:#F1DFCC; --line-2:#E7CDB3;
+  --accent:#6A48F2; --accent-2:#5233D6; --accent-ink:#FFFFFF; --accent-soft:#EEE8FF;
+  --sun:#FFD15C; --sun-soft:#FFEDB8;
+  --carry:#16996A; --carry-2:#0E7A53; --carry-soft:#DBF5E8;
+  --dead:#D98A0E; --dead-soft:#FFF0D4;
+  --off:#E04A6E; --off-soft:#FFE4EB;
+  --ans:#2F7FE0; --ans-soft:#E2EEFF;
+  --mark-ink:#2B2238;
+  --f-read:"Newsreader", Georgia, "Times New Roman", serif;
+  --f-ui:"Plus Jakarta Sans", "Avenir Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:14px;
+  --shadow:0 1px 2px rgba(60,40,30,.05),0 4px 14px rgba(60,40,30,.05);
+  --spring:cubic-bezier(.3,1.2,.6,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1B1626; --surface:#262035; --ink:#F5EFF9; --muted:#B5A9C0; --line:#382F49; --line-2:#4A3F5E;
+    --accent:#A58FFF; --accent-2:#8670EE; --accent-ink:#1B1626; --accent-soft:#2F2752;
+    --sun:#E8B94A; --sun-soft:#4A3B17;
+    --carry:#4FD39C; --carry-2:#2FAF7B; --carry-soft:#183A2C;
+    --dead:#F0B04A; --dead-soft:#3D2E14;
+    --off:#FF85A2; --off-soft:#43202C;
+    --ans:#7FB2FF; --ans-soft:#1E2E4A;
+    --mark-ink:#FFF6DA;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1B1626; --surface:#262035; --ink:#F5EFF9; --muted:#B5A9C0; --line:#382F49; --line-2:#4A3F5E;
+  --accent:#A58FFF; --accent-2:#8670EE; --accent-ink:#1B1626; --accent-soft:#2F2752;
+  --sun:#E8B94A; --sun-soft:#4A3B17;
+  --carry:#4FD39C; --carry-2:#2FAF7B; --carry-soft:#183A2C;
+  --dead:#F0B04A; --dead-soft:#3D2E14;
+  --off:#FF85A2; --off-soft:#43202C;
+  --ans:#7FB2FF; --ans-soft:#1E2E4A;
+  --mark-ink:#FFF6DA;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{text-wrap:balance;margin:0}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px}
+.muted{color:var(--muted)}
+q{quotes:"\201C" "\201D"}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:12px max(16px,calc((100% - 1100px)/2))}
+.brand{font-weight:800;font-size:1.3rem;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand-mark{display:inline-flex;gap:3px}
+.brand-mark i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.brand-mark i:nth-child(2){background:var(--sun)} .brand-mark i:nth-child(3){background:var(--carry)}
+.back{color:var(--muted);font-weight:700;white-space:nowrap;background:none;border:0;cursor:pointer;padding:6px 10px;border-radius:999px}
+.back:hover{color:var(--ink);background:var(--surface)}
+.ttl{flex:1;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hud{display:flex;gap:10px;align-items:center;font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.btn.skip{padding:6px 12px;font-size:.85rem;white-space:nowrap}
+.pill{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 12px;font-weight:800;font-size:.8125rem}
+.streak{display:inline-flex;align-items:center;gap:4px;background:var(--sun-soft);color:var(--ink);border-radius:999px;padding:3px 10px 3px 8px;font-weight:800;font-size:.8125rem}
+.streak svg{width:14px;height:14px;fill:var(--dead)}
+.streak.bump{animation:bump .6s var(--spring)}
+@keyframes bump{0%{transform:scale(.9);opacity:.6}100%{transform:scale(1);opacity:1}}
+.dots{display:flex;gap:6px;align-items:center}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line-2);transition:all .45s var(--spring)}
+.dots i.done{background:var(--accent)}
+.dots i.now{width:22px;border-radius:999px;background:var(--accent)}
+
+/* buttons: tactile, with a bottom edge that presses down */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--line-2);background:var(--surface);border-radius:8px;padding:9px 16px;font-weight:600;font-size:.95rem;cursor:pointer;text-decoration:none;color:var(--ink);box-shadow:none;transition:transform .12s ease,box-shadow .12s ease,filter .15s}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:scale(.985)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:none}
+.btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn.primary:active{transform:scale(.985)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.link{background:none;border:0;padding:4px 4px;color:var(--accent);font-weight:800;cursor:pointer}
+.link.danger{color:var(--off)}
+
+/* library */
+.lib{max-width:1100px;margin:0 auto;padding:44px 16px 72px;display:grid;gap:44px}
+.intro{max-width:680px;display:grid;gap:14px}
+.intro h1{font-weight:800;font-size:clamp(2rem,4.4vw,2.9rem);line-height:1.08;letter-spacing:-.02em}
+.intro h1 em{font-style:normal;background:linear-gradient(transparent 58%,var(--sun) 58%,var(--sun) 92%,transparent 92%);padding:0 .08em}
+.intro p{color:var(--muted);font-size:1.0625rem;margin:0;max-width:58ch;font-weight:600}
+.sec-h{margin-bottom:14px}
+.sec-h h2{font-size:.8125rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:800}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8125rem;font-weight:800;border-radius:999px;padding:4px 12px}
+.chip.carry{background:var(--carry-soft);color:var(--carry)} .chip.dead{background:var(--dead-soft);color:var(--dead)} .chip.off{background:var(--off-soft);color:var(--off)} .chip.answered{background:var(--ans-soft);color:var(--ans)}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.mode{display:grid;gap:6px;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:16px 18px;cursor:pointer;box-shadow:none;transition:transform .2s var(--spring),box-shadow .2s,border-color .2s}
+.mode:hover{border-color:var(--accent)}
+
+.mode.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.mode-top{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem}
+.mode-n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:.8125rem;font-weight:800}
+.mode.on .mode-n{background:var(--accent);color:var(--accent-ink)}
+.mode-desc{color:var(--muted);font-size:.9rem;font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:10px;box-shadow:none;transition:transform .25s var(--spring),box-shadow .25s}
+.card:hover{border-color:var(--line-2)}
+.card h3{font-weight:800;font-size:1.25rem;line-height:1.2}
+.card .hook{margin:0;color:var(--muted);font-family:var(--f-read);font-style:italic;font-size:1.05rem}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.75rem;font-weight:800;border-radius:999px;padding:3px 10px;background:var(--accent-soft);color:var(--accent)}
+.tag.ghost{background:var(--bg);color:var(--muted)}
+.card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:6px;flex-wrap:wrap}
+.meta{font-size:.8125rem;color:var(--muted);font-weight:700}
+.tutor{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;border:2px dashed var(--line-2);border-radius:var(--r);padding:22px}
+.tutor h2{font-size:1.05rem;font-weight:800}
+.tutor p{margin:4px 0 0;color:var(--muted);max-width:60ch;font-weight:600}
+footer.note{font-size:.8125rem;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;font-weight:600}
+
+/* reading */
+.read{max-width:1100px;margin:0 auto;padding:30px 16px 72px;display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:40px;align-items:start}
+.col{display:grid;gap:22px;max-width:700px}
+.trail{display:grid;gap:2px}
+.trail-s{display:flex;gap:10px;text-align:left;background:none;border:0;padding:6px 10px;margin:0 -10px;border-radius:12px;cursor:pointer;font-family:var(--f-read);font-size:1.05rem;line-height:1.5;color:var(--muted)}
+.trail-s .tx{filter:blur(4px);opacity:.5;transition:filter .4s ease,opacity .4s ease;user-select:none}
+.trail-s:hover{background:var(--surface)}
+.trail-s.peek .tx{filter:none;opacity:1;user-select:text}
+.trail-s.just-left{animation:settle .7s var(--spring) both}
+.trail-s.just-left .tx{animation:fadeAway 1.2s ease both}
+@keyframes settle{from{transform:translateY(40px) scale(1.15);transform-origin:left top}to{transform:none}}
+@keyframes fadeAway{0%{filter:blur(0);opacity:1}40%{filter:blur(0);opacity:1}100%{filter:blur(4px);opacity:.5}}
+.num{font-family:var(--f-ui);font-size:.75rem;font-weight:800;color:var(--muted);min-width:18px;padding-top:.35em;font-variant-numeric:tabular-nums}
+.trail-hint{font-size:.8125rem;color:var(--muted);margin:4px 0 0;font-weight:600}
+.answers{display:inline-flex;align-self:start;justify-self:start;gap:8px;align-items:center;font-size:.875rem;font-weight:800;color:var(--carry);background:var(--carry-soft);border-radius:999px;padding:5px 14px 5px 10px;animation:pop .55s .55s var(--spring) both}
+.answers svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.answers.muted{color:var(--muted);background:var(--surface)}
+@keyframes pop{0%{opacity:0;transform:scale(.7) translateY(6px)}100%{opacity:1;transform:none}}
+.current{display:flex;gap:10px;animation:rise .6s var(--spring) both}
+.current.leaving{animation:leave .28s ease forwards}
+@keyframes rise{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes leave{to{opacity:0;transform:translateY(-18px) scale(.97);filter:blur(2px)}}
+.sent{margin:0;font-family:var(--f-read);font-size:clamp(1.4rem,2.7vw,1.7rem);line-height:1.5;letter-spacing:-.005em;max-width:34em}
+mark.ans{color:var(--mark-ink);padding:0 .12em;border-radius:6px;background-image:linear-gradient(var(--sun),var(--sun));background-repeat:no-repeat;background-position:0 85%;background-size:0% 40%;background-color:transparent;animation:sweep .9s .35s cubic-bezier(.6,0,.2,1) forwards}
+@keyframes sweep{0%{background-size:0% 40%}60%{background-size:100% 40%}100%{background-size:100% 100%}}
+.blank{display:inline-block;min-width:5.5em;border-bottom:3px solid var(--accent);margin:0 .15em;}
+@keyframes blink{50%{border-color:var(--line-2)}}
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:14px;box-shadow:none;animation:rise .55s .12s var(--spring) both}
+.ask-h{margin:0;font-weight:800;font-size:1.05rem}
+.ask-sub{margin:-8px 0 0;color:var(--muted);font-size:.9rem;font-weight:600}
+.opts{display:grid;gap:10px}
+.opt{position:relative;text-align:left;background:var(--surface);border:1.5px solid var(--line-2);border-radius:10px;padding:13px 16px;cursor:pointer;font-size:1.02rem;font-weight:600;line-height:1.35;display:flex;justify-content:space-between;gap:10px;align-items:center;box-shadow:none;transition:transform .15s var(--spring),box-shadow .15s,border-color .15s,background .2s,opacity .3s}
+.opts .opt:nth-child(1){animation:pop .45s .25s var(--spring) both}
+.opts .opt:nth-child(2){animation:pop .45s .33s var(--spring) both}
+.opts .opt:nth-child(3){animation:pop .45s .41s var(--spring) both}
+.opts.settled .opt{animation:none}
+.opt:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.opt:active:not(:disabled){transform:scale(.985)}
+.opt:disabled{cursor:default}
+.opt .lab{font-size:.75rem;font-weight:800;white-space:nowrap;border-radius:999px;padding:2px 9px;background:var(--surface)}
+.opt.k-carry{border-color:var(--carry);background:var(--carry-soft);box-shadow:none} .opt.k-carry .lab{color:var(--carry)}
+.opt.k-dead{border-color:var(--dead);background:var(--dead-soft);box-shadow:none} .opt.k-dead .lab{color:var(--dead)}
+.opt.k-off{border-color:var(--off);background:var(--off-soft);box-shadow:none} .opt.k-off .lab{color:var(--off)}
+.opt.k-answered{border-color:var(--ans);background:var(--ans-soft);box-shadow:none} .opt.k-answered .lab{color:var(--ans)}
+.opt.dim{opacity:.45}
+.opt.pop{animation:popBig .55s var(--spring)}
+.opt.wiggle{animation:wiggle .5s ease}
+.opt.glow{animation:glow 1.6s ease .3s 1}
+@keyframes popBig{0%{transform:scale(.985)}100%{transform:scale(1)}}
+@keyframes wiggle{25%{transform:translateX(-3px)}60%{transform:translateX(2px)}}
+@keyframes glow{50%{box-shadow:0 0 0 4px var(--carry-soft)}}
+.fb{margin:0;padding:12px 14px;border-radius:14px;font-size:.98rem;font-weight:600;background:var(--bg);display:grid;gap:4px;animation:pop .45s var(--spring) both}
+.fb b{font-weight:800}
+.fb.carry{background:var(--carry-soft)} .fb.carry b{color:var(--carry)}
+.fb.dead{background:var(--dead-soft)} .fb.dead b{color:var(--dead)}
+.fb.off{background:var(--off-soft)} .fb.off b{color:var(--off)}
+.fb.answered{background:var(--ans-soft)} .fb.answered b{color:var(--ans)}
+.emo{display:inline-block;font-size:1.2em;line-height:1;margin-right:8px;vertical-align:-.1em;transform-origin:50% 80%;animation:ponder 2.4s ease-in-out .4s 1}
+@keyframes ponder{0%,100%{transform:rotate(0)}35%{transform:rotate(-7deg)}70%{transform:rotate(4deg)}}
+.ring-wrap{position:relative;width:54px;height:54px;flex:none}
+.ring-wrap .emo{position:absolute;inset:0;display:grid;place-items:center;margin:0;font-size:22px;animation:ponder 2.4s ease-in-out .3s 1}
+.hm{font-size:1.05em;margin-right:4px}
+.sig{border-bottom:2px solid transparent;transition:color .5s ease,border-color .5s ease}
+.sigs-on .sig{color:var(--accent);border-bottom-color:var(--accent)}
+.signal{display:grid;gap:4px;padding:12px 14px;border-radius:10px;border:1px dashed var(--accent);background:var(--accent-soft);animation:pop .45s .15s var(--spring) both}
+.signal p{margin:0;font-weight:600;font-size:.95rem}
+.sig-label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.chip.sigc{background:var(--accent-soft);color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.think{display:flex;align-items:center;gap:16px}
+.ring{width:54px;height:54px;flex:none}
+.ring circle{fill:none;stroke-width:6}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:138.2;stroke-dashoffset:138.2;transform:rotate(-90deg);transform-origin:50% 50%;animation:fill 3s linear forwards}
+@keyframes fill{to{stroke-dashoffset:0}}
+textarea,input[type=text],select{width:100%;background:var(--bg);border:2px solid var(--line-2);border-radius:14px;padding:11px 14px;line-height:1.45;font-weight:600}
+textarea:focus,input[type=text]:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+textarea{resize:vertical;min-height:64px}
+.thread{position:sticky;top:80px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:12px;box-shadow:none}
+.thread h2{font-size:.8125rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:800}
+.thread ol{list-style:none;margin:0;padding:0;display:grid}
+.thread li{position:relative;padding:0 0 14px 26px;font-size:.95rem;line-height:1.4;font-weight:700}
+.thread li::before{content:"";position:absolute;left:4px;top:4px;width:13px;height:13px;border-radius:50%;background:var(--line-2);border:3px solid var(--surface);box-shadow:0 0 0 2px var(--line-2)}
+.thread li::after{content:"";position:absolute;left:10px;top:22px;bottom:0;width:2px;border-radius:2px;background:var(--line)}
+.thread li:last-child{padding-bottom:0} .thread li:last-child::after{display:none}
+.thread li.got::before{background:var(--carry);box-shadow:0 0 0 2px var(--carry)}
+.thread li.new{animation:pop .5s var(--spring) both}
+.thread li.new.got::before{animation:ping 1s ease .2s}
+@keyframes ping{0%{box-shadow:0 0 0 2px var(--carry)}50%{box-shadow:0 0 0 9px var(--carry-soft)}100%{box-shadow:0 0 0 2px var(--carry)}}
+.thread li .yours{display:block;color:var(--muted);font-size:.8125rem;margin-top:2px;font-weight:600}
+.thread .stat{font-size:.8125rem;color:var(--muted);border-top:2px solid var(--line);padding-top:10px;font-variant-numeric:tabular-nums;font-weight:700}
+.spark{position:fixed;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;pointer-events:none;z-index:60;transition:transform .7s cubic-bezier(.15,.8,.3,1),opacity .7s ease}
+.spark.sq{border-radius:2px}
+
+/* final */
+.final{max-width:820px;margin:0 auto;padding:32px 16px 80px;display:grid;gap:24px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:grid;gap:12px;box-shadow:none;animation:rise .6s var(--spring) both}
+.panel:nth-child(2){animation-delay:.08s} .panel:nth-child(3){animation-delay:.16s}
+.card,.ask,.thread,.panel{box-shadow:var(--shadow)}
+.panel h2{font-size:.8125rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:800}
+.chain{list-style:none;margin:0;padding:0;counter-reset:c;display:grid;gap:10px}
+.chain li{counter-increment:c;display:grid;grid-template-columns:30px 1fr;gap:2px 10px;font-weight:800;font-size:1.1rem;line-height:1.35}
+.chain li::before{content:counter(c);display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--line);color:var(--muted);font-size:.8rem;font-weight:800}
+.chain li.got::before{background:var(--carry);color:var(--surface)}
+.chain .yours{grid-column:2;font-size:.8125rem;color:var(--muted);font-weight:600}
+.hint{font-size:.8125rem;color:var(--muted);margin:0;font-weight:600}
+.full{margin:0;font-family:var(--f-read);font-size:1.15rem;line-height:1.6;max-width:62ch}
+.full .ul{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--accent);text-underline-offset:5px}
+.qprompt{margin:0;font-weight:800;font-size:1.1rem}
+.choices{display:grid;gap:10px}
+.choice{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:start;text-align:left;background:var(--surface);border:1.5px solid var(--line-2);border-radius:10px;padding:13px 16px;cursor:pointer;line-height:1.45;font-weight:600;box-shadow:none;transition:transform .15s var(--spring),box-shadow .15s,border-color .15s;animation:pop .45s var(--spring) both}
+.choice:nth-child(2){animation-delay:.06s} .choice:nth-child(3){animation-delay:.12s} .choice:nth-child(4){animation-delay:.18s}
+.choices.settled .choice{animation:none}
+.choice:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.choice:active:not(:disabled){transform:scale(.985)}
+.choice:disabled{cursor:default}
+.letter{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--line-2);font-weight:800;font-size:.85rem}
+.choice.right{border-color:var(--carry);background:var(--carry-soft);box-shadow:none} .choice.right .letter{border-color:var(--carry);background:var(--carry);color:var(--surface)}
+.choice.right.pop{animation:popBig .6s var(--spring)}
+.choice.wrong{border-color:var(--off);background:var(--off-soft);box-shadow:none} .choice.wrong .letter{border-color:var(--off);color:var(--off)}
+.choice.wrong.wiggle{animation:wiggle .5s ease}
+.choice.dim{opacity:.5}
+.verdict{margin:0;font-weight:800;font-size:1.15rem;animation:pop .5s var(--spring) both}
+.verdict.right{color:var(--carry)} .verdict.wrong{color:var(--off)}
+.expl{margin:0;line-height:1.6;font-weight:600}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat-chip{background:var(--bg);border-radius:999px;padding:5px 13px;font-size:.875rem;font-weight:800;font-variant-numeric:tabular-nums}
+.your-pred{margin:0;font-size:.95rem;color:var(--muted);font-weight:600}
+.your-pred b{color:var(--ink);font-weight:800}
+
+/* editor */
+.ed{max-width:880px;margin:0 auto;padding:34px 16px 80px;display:grid;gap:22px}
+.ed h1{font-weight:800;font-size:2rem}
+.ed .lede{margin:6px 0 0;color:var(--muted);max-width:64ch;font-weight:600}
+.ed .panel{animation:none}
+.field{display:grid;gap:6px}
+.field label{font-weight:800;font-size:.9rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.step{border:2px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:10px;background:var(--bg)}
+.step-s{margin:0;font-family:var(--f-read);font-size:1.05rem;line-height:1.45}
+.step-s .num{margin-right:6px}
+.qrow{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center}
+.qrow .k{font-size:.8125rem;font-weight:800}
+.qrow .k.carry{color:var(--carry)}
+.opt-ed{display:grid;gap:6px;border-left:4px solid var(--line-2);padding-left:10px}
+.opt-ed.carry{border-color:var(--carry)}
+.opt-ed .two{display:grid;grid-template-columns:170px 1fr;gap:8px}
+.status{margin:0;padding:12px 14px;border-radius:14px;background:var(--accent-soft);font-size:.95rem;font-weight:700}
+.status.err{background:var(--off-soft)}
+.chk{display:flex;gap:8px;align-items:center;font-weight:800;font-size:.9rem}
+
+@media (max-width:880px){
+  .read{grid-template-columns:1fr;gap:24px}
+  .thread{position:static}
+  .modes{grid-template-columns:1fr}
+}
+@media (max-width:540px){
+  .grid2,.qrow,.opt-ed .two{grid-template-columns:1fr}
+  .hud .pill,.dots{display:none}
+  .opt{flex-direction:column;align-items:flex-start}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  mark.ans{background-size:100% 100%}
+  .ring .fg{stroke-dashoffset:0}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="application/json" id="custom-data">[]</script>
+<script id="app-js">
+"use strict";
+var FONT_HREF = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap";
+function Q(q, kind, note){ return {q:q, kind:kind, note:note}; }
+var BUILTIN = [
+{
+ id:"alpine-sedges", title:"The Sedges That Moved Downhill", skill:"Inferences", domain:"Science",
+ hook:"Warming helped the plants at first. Then something else arrived.",
+ sentences:[
+  {text:"Many alpine plants are expected to struggle as the climate warms, since they cannot migrate any higher than the mountaintops where they already grow.",
+   signals:[{w:"since", note:"“Since” introduces a reason. The sentence explains its own claim, so asking why they can't move higher only repeats it."}],
+   questions:[Q("How can anyone test that?","carry","The sentence makes a prediction, so the natural next step is checking it. Sentence 2 does exactly that."),
+              Q("Why can't they move higher?","answered","Good instinct to ask why, but the sentence already told you: they're at the top already. Asking about what's settled keeps you in place."),
+              Q("How many kinds are at risk?","dead","Fair, but the passage never says, and the question won't need it.")]},
+  {text:"To simulate future conditions, botanist Lena Okafor and her colleagues moved sedge plants from a high meadow to a site 600 meters lower, where it is about 3°C warmer.", answer:"moved sedge plants from a high meadow to a site 600 meters lower",
+   signals:[{w:"To simulate future conditions", note:"A purpose phrase. It tells you this is an experiment, and experiments make you ask what they found."}],
+   questions:[Q("What happened to the plants?","carry","An experiment just started, so you want the result. It comes next."),
+              Q("How did they move them?","dead","Reasonable, but it's a method detail the passage skips."),
+              Q("Why is lower ground warmer?","off","True and interesting, but the 3°C is a fact to use, not a mystery the passage will solve.")]},
+  {text:"At first, the transplanted sedges grew taller and produced more seeds than the sedges left in the high meadow.", answer:"grew taller and produced more seeds",
+   signals:[{w:"At first", note:"“At first” warns you that things change later. That's why the question to ask is whether the good news lasts."}],
+   questions:[Q("Does warming help them, then?","carry","This result clashes with sentence 1. Noticing a clash is one of the strongest questions you can ask, and the passage resolves it next."),
+              Q("How many more seeds were there?","dead","The exact number never comes up. What matters is the direction of the result."),
+              Q("Do tall plants make more seeds?","off","That's a general biology question. It leads away from this study.")]},
+  {text:"By the third year, however, lowland grasses had spread into the transplanted plots and shaded out most of the sedges.", answer:"lowland grasses had spread into the transplanted plots and shaded out most of the sedges",
+   signals:[{w:"however", note:"“However” flips the result from sentence 3. The conclusion will turn on this new problem."}],
+   questions:[Q("Heat or grasses: which is the threat?","carry","Two possible causes now compete, and the blank at the end will choose between them."),
+              Q("How fast did the grasses spread?","dead","Fair, but the passage never measures it."),
+              Q("Should they have weeded the plots?","off","That judges the experiment instead of following what it found.")]},
+  {text:"These results suggest that ______",
+   signals:[{w:"suggest", note:"“Suggest” means a conclusion is coming. Whatever fills the blank has to fit everything in your thread."}]}
+ ],
+ question:{prompt:"Which choice most logically completes the text?",
+  choices:["rising temperatures will cause alpine sedges to produce fewer seeds than they do now.","the greatest danger warming poses to alpine sedges may come from competitors that warming allows to move uphill.","lowland grasses will be unable to survive if they are moved to high meadows.","alpine sedges grow best at elevations lower than those where they are currently found."],
+  correct:1,
+  explanation:"Your thread did the work. Warming helped the sedges at first (sentence 3), and then the grasses took over (sentence 4), so the threat is competition, not the heat itself. A contradicts sentence 3. D fits the early results but ignores what happened by year three. C is about grasses at high elevation, which the study never tested."}
+},
+{
+ id:"auto-enroll", title:"The Form Nobody Filled Out", skill:"Text Structure and Purpose", domain:"Social Science",
+ hook:"Economists thought they knew why workers didn't save.",
+ sentences:[
+  {text:"For decades, many companies let employees decide whether to join a retirement savings plan, and fewer than half of eligible workers typically signed up.",
+   signals:[{w:"For decades", note:"Opening with a long-standing situation often sets up an explanation or a change. Ask what's behind it."}],
+   questions:[Q("Why did so few sign up?","carry","A surprising number calls for an explanation, and sentence 2 offers one."),
+              Q("What kinds of companies were these?","dead","The passage never says, and it doesn't need to."),
+              Q("How much do people usually save?","off","That's about amounts saved, not the sign-up decision this passage is about.")]},
+  {text:"Economists long assumed that the workers who didn't join simply preferred to have more money to spend in the present.", answer:"preferred to have more money to spend in the present",
+   signals:[{w:"long assumed", note:"“Long assumed” flags a belief the passage is about to test. Assumptions in SAT passages rarely survive."}],
+   questions:[Q("Is that assumption right?","carry","Passages often state an assumption so they can test it, and the next sentence does."),
+              Q("Why didn't the workers join?","answered","The sentence just answered that: economists thought they wanted to spend now. The next step is asking whether that's true."),
+              Q("What did they spend it on?","dead","The passage never goes there.")]},
+  {text:"But when some companies began enrolling workers automatically, while still letting anyone opt out by submitting a one-page form, participation rose above 85 percent.", answer:"participation rose above 85 percent",
+   signals:[{w:"But", note:"“But” marks evidence against the assumption in sentence 2. This is the sentence the SAT question asks about."}],
+   questions:[Q("Did people opt back out?","carry","If workers truly didn't want to save, they'd fill out the form. Sentence 4 checks."),
+              Q("Who tried this first?","dead","Never answered, and not needed."),
+              Q("Should saving be required?","off","That's an opinion about policy. The passage is explaining behavior.")]},
+  {text:"Few of the automatically enrolled workers ever submitted the form, even though doing so took only minutes.", answer:"Few of the automatically enrolled workers ever submitted the form",
+   signals:[{w:"even though", note:"“Even though” sets up a puzzle: easy to do, yet almost nobody did it. Puzzles call for an explanation."}],
+   questions:[Q("Why didn't they bother?","carry","Easy to do, yet almost nobody did it. That puzzle is exactly what the conclusion explains."),
+              Q("How long did the form take?","answered","The sentence already says: only minutes."),
+              Q("Who designed the form?","off","That leads away from the workers' behavior.")]},
+  {text:"The researchers concluded that the original low enrollment reflected inertia, the tendency to stick with whatever option requires no action, more than a considered preference.", answer:"reflected inertia",
+   signals:[{w:"concluded", note:"“Concluded” marks the answer to the whole chain of questions."}]}
+ ],
+ question:{prompt:"Which choice best describes the function of the underlined sentence in the text as a whole?",
+  choices:["It presents evidence that challenges the assumption described in the previous sentence.","It explains why companies stopped offering retirement savings plans.","It describes a criticism that economists made of automatic enrollment.","It provides an example that supports the economists' original assumption."],
+  correct:0, underline:2,
+  explanation:"In your thread, sentence 2 raised the question “Is that assumption right?” Sentence 3 is the passage's answer, and “But” signals it. If workers really wanted to spend instead of save, automatic enrollment wouldn't have changed much, but participation jumped. That challenges the assumption. D says the opposite, and B and C describe things the text never says."}
+},
+{
+ id:"photo-painting", title:"What the Camera Couldn't Catch", skill:"Central Ideas and Details", domain:"Humanities",
+ hook:"Critics said photography would end painting. Painters had other plans.",
+ sentences:[
+  {text:"When photography emerged in the 1830s, some critics predicted that it would make painting obsolete.",
+   signals:[{w:"predicted", note:"A prediction in a passage is usually there to be explained, tested, or overturned."}],
+   questions:[Q("Why would they think that?","carry","A bold prediction calls for a reason, and sentence 2 gives it."),
+              Q("Who invented photography?","dead","Fair, but the passage never says."),
+              Q("Were early cameras expensive?","off","Cost isn't part of this argument.")]},
+  {text:"A camera, after all, could record a scene with a precision that even the most skilled painter could not match.", answer:"record a scene with a precision that even the most skilled painter could not match",
+   signals:[{w:"after all", note:"“After all” introduces a reason that supports the prediction. Once you have the reason, ask whether the prediction came true."}],
+   questions:[Q("Did painting actually die out?","carry","You know the prediction and the reason behind it. Now: did it come true? The next sentence answers."),
+              Q("How did early cameras work?","dead","Interesting, but the passage skips the technology."),
+              Q("Is precision what makes art good?","off","A great debate, but it isn't this passage's question.")]},
+  {text:"Yet rather than abandoning their craft, many painters began to explore what a camera could not capture.", answer:"rather than abandoning their craft",
+   signals:[{w:"Yet", note:"“Yet” turns against the prediction. Painting didn't die, and “rather than” tells you what painters did instead."}],
+   questions:[Q("What couldn't a camera capture?","carry","The sentence is vague about what cameras missed, so you want an example. One is coming."),
+              Q("Did painters keep painting?","answered","The sentence already said it: rather than abandoning their craft."),
+              Q("How many painters gave up?","dead","The passage never counts them.")]},
+  {text:"The Impressionists, for instance, tried to convey color, flickering light, and the fleeting feel of a single moment, qualities that the black-and-white photographs of the time could not.", answer:"color, flickering light, and the fleeting feel of a single moment",
+   signals:[{w:"for instance", note:"“For instance” means an example of the claim just made. After an example, passages usually zoom back out."}],
+   questions:[Q("What's the bigger point here?","carry","After an example, passages usually zoom back out. The last sentence does."),
+              Q("Which Impressionist was best?","dead","Never answered."),
+              Q("When did color photos arrive?","off","That's photography history, and it leads away from painting.")]},
+  {text:"Photography, in other words, did not replace painting so much as push it in new directions.", answer:"push it in new directions",
+   signals:[{w:"in other words", note:"“In other words” restates the main point. On main idea questions, this is often where to look."}]}
+ ],
+ question:{prompt:"Which choice best states the main idea of the text?",
+  choices:["Critics were correct that photography would lead the public to lose interest in painting.","Impressionist painters relied on photographs to help them study light and color.","The arrival of photography led some painters to focus on what cameras could not record.","Early photographs could record scenes more precisely than any painting could."],
+  correct:2,
+  explanation:"Follow your thread: critics predicted painting would die (sentence 1), painters responded by exploring what cameras missed (sentence 3), and “in other words” sums it up. D is true according to sentence 2, but it's a supporting detail, not the main idea. A is the prediction the passage pushes back on. B is never stated."}
+},
+{
+ id:"hardware-store", title:"The Ledger", skill:"Inferences", domain:"Literature",
+ hook:"He only nodded. That night, he opened an old book.",
+ sentences:[
+  {text:"Every morning for thirty-one years, Mr. Adeyemi had unlocked the hardware store at exactly seven o'clock, even on days when no customers came.",
+   signals:[{w:"Every morning for thirty-one years", note:"Stories describe long routines so they can break them. Expect a disruption."}],
+   questions:[Q("Is that about to change?","carry","In a story, a long routine is usually there to be disrupted. Watch for what disrupts it."),
+              Q("What does the store sell?","dead","The kind of store doesn't matter for what happens."),
+              Q("Who taught him the business?","off","That's backstory the passage never gives.")]},
+  {text:"When his granddaughter suggested that he accept the offer from the chain store across the street, he only nodded and went on sorting screws into their wooden drawers.", answer:"accept the offer from the chain store across the street",
+   signals:[{w:"only", note:"“Only nodded” tells you he said less than he could have. When a character holds back, watch what they do next."}],
+   questions:[Q("What does he really think?","carry","A nod isn't an answer. When a character says little, watch what they do next."),
+              Q("How much was the offer?","dead","Never said."),
+              Q("Why are the drawers wooden?","off","Details like this set the mood, but they aren't the question.")]},
+  {text:"That evening, though, she found him at the counter with an old ledger open, running a finger down columns of names: neighbors who had bought on credit, some of them for decades.", answer:"with an old ledger open",
+   signals:[{w:"though", note:"“That evening, though” marks a shift from the calm nod. Something changed after their conversation."}],
+   questions:[Q("Why the old debts, tonight?","carry","He's looking at debts right after hearing about the offer. Ask why now."),
+              Q("How much is owed in total?","dead","The total never comes up."),
+              Q("Does she work there too?","off","That's about her, but the story is following him.")]},
+  {text:"Beside several of the names he had written a single word, “Paid,” though she knew that none of those neighbors had paid.", answer:"a single word, “Paid,”",
+   signals:[{w:"though she knew", note:"“Though” sets up a contradiction: he wrote “Paid” for debts that weren't paid. A deliberate contradiction is a clue."}],
+   questions:[Q("Why mark them paid?","carry","He wrote something untrue on purpose. That's the clue to his decision."),
+              Q("Who were these neighbors?","dead","The names don't matter here."),
+              Q("Is that even legal?","off","That judges him instead of trying to understand him.")]},
+  {text:"He closed the book when he saw her in the doorway and said only, “Better they hear it from me first.”", answer:"Better they hear it from me first.",
+   signals:[{w:"said only", note:"“Said only” again: he says very little, so every word counts. “Hear it” means there's news."}]}
+ ],
+ question:{prompt:"Based on the text, what can most reasonably be inferred about Mr. Adeyemi?",
+  choices:["He suspects that his neighbors have been dishonest about what they owe.","He has decided to sell the store and is forgiving his neighbors' debts before he does.","He plans to compete with the chain store by offering customers more credit.","He is upset that his granddaughter questioned how he runs the store."],
+  correct:1,
+  explanation:"Your questions built the inference. The nod (sentence 2) hid a decision, the ledger and the word “Paid” (sentences 3 and 4) show him cancelling debts, and “hear it from me first” (sentence 5) means he has news to share: the sale. A misreads “Paid”: he is forgiving, not accusing. C and D have no support in the text."}
+},
+{
+ id:"roman-concrete", title:"Walls That Outlasted an Empire", skill:"Command of Evidence", domain:"Science",
+ hook:"Roman concrete has lasted 2,000 years. The clue was mistaken for sloppiness.",
+ sentences:[
+  {text:"Roman harbor walls built nearly two thousand years ago still stand today, while many modern concrete structures begin to crumble within decades.",
+   signals:[{w:"while", note:"“While” sets up a contrast. A contrast makes you ask what explains the difference."}],
+   questions:[Q("Why does Roman concrete last?","carry","A striking contrast calls for an explanation. Hold onto this one: the answer takes two sentences to arrive."),
+              Q("Where are these harbor walls?","dead","Never said, and not needed."),
+              Q("Why do we still build with concrete?","off","That's about modern building choices, not the Roman mystery.")]},
+  {text:"Researchers had long noticed small white chunks of lime scattered through Roman concrete, and most assumed the chunks were a sign of careless mixing.",
+   signals:[{w:"most assumed", note:"“Most assumed” flags a belief the passage is likely to challenge. Notice that your first question isn't answered yet."}],
+   questions:[Q("Were the chunks really a mistake?","carry","“Most assumed” is a setup. Passages state assumptions so they can challenge them."),
+              Q("What were the white chunks?","answered","The sentence already said: lime."),
+              Q("How big were the chunks?","dead","Size never comes up.")]},
+  {text:"Materials scientist Dana Whitlock proposes that the chunks were intentional: when cracks form and water seeps in, the lime dissolves and refills the cracks, sealing them.", answer:"the chunks were intentional",
+   signals:[{w:"proposes", note:"“Proposes” means this is a hypothesis, not a proven fact. That's your cue to ask how it could be tested. It also answers your very first question."}],
+   questions:[Q("How could she prove that?","carry","A proposal needs a test. Sentence 4 describes one, and the SAT question asks about it."),
+              Q("How long does the sealing take?","dead","Never said."),
+              Q("Did Romans understand chemistry?","off","Interesting, but the passage is about how the concrete works, not what Romans knew.")]},
+  {text:"If Whitlock is correct, concrete containing lime chunks should repair its own cracks, while concrete without them should not.", answer:"concrete containing lime chunks should repair its own cracks",
+   signals:[{w:"If Whitlock is correct", note:"“If … correct” sets up a test. The SAT question will ask which result would pass it."}]}
+ ],
+ question:{prompt:"Which finding, if true, would most directly support Whitlock's hypothesis?",
+  choices:["Cracked samples of concrete made with lime chunks sealed themselves after water flowed through them, while cracked samples made without the chunks did not.","Lime chunks appear in Roman concrete from many different regions of the empire.","Modern concrete generally contains less lime than Roman concrete does.","Roman builders sometimes left written instructions describing how to mix concrete."],
+  correct:0,
+  explanation:"Your last question, “How could she prove that?”, points straight here. Sentence 4 spells out the test: concrete with lime chunks should seal its cracks, and concrete without them shouldn't. A matches both halves. B shows the chunks were common, not that they repair cracks. C compares amounts of lime without testing repair. D says nothing about what the instructions contained."}
+}
+];
+
+var MODES = [
+ {id:"guided", n:1, name:"Guided", desc:"Pick from three short questions. Each one tells you where it leads."},
+ {id:"think", n:2, name:"Think first", desc:"Come up with your own question, then check it against three options."},
+ {id:"solo", n:3, name:"Solo", desc:"Ask your own question. The next sentence shows what the passage answered."}
+];
+var KIND = {carry:"Keeps it moving", dead:"Dead end", off:"Off track", answered:"Already answered"};
+var KIND_HEAD = {carry:"Yes, that one.", dead:"Fair, but it goes nowhere.", off:"That drifts off track.", answered:"Already answered."};
+var SKILLS = ["Central Ideas and Details","Command of Evidence","Inferences","Text Structure and Purpose","Words in Context","Cross-Text Connections","Other"];
+var DOMAINS = ["Science","Social Science","Humanities","Literature","History"];
+var FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2.2 1-3.7 2.2-4.8.2 1.7 1 2.8 2.3 3.3C11 9 11.3 5 12 2z"/></svg>';
+var ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v7a4 4 0 0 0 4 4h10M15 11l4 4-4 4"/></svg>';
+var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var CUSTOM = [];
+try { CUSTOM = JSON.parse(document.getElementById("custom-data").textContent || "[]") || []; } catch (e) { CUSTOM = []; }
+var LOCAL = [];
+try { LOCAL = JSON.parse(localStorage.getItem("qc-local") || "[]") || []; } catch (e) { LOCAL = []; }
+var mode = "guided";
+try { mode = localStorage.getItem("qc-mode") || "guided"; } catch (e) {}
+if (!MODES.some(function(m){return m.id===mode;})) mode = "guided";
+
+var app = document.getElementById("app");
+var S = null, E = null, edMsg = null, pendingDelete = null, modeAnim = false;
+
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+function allPassages(){ return BUILTIN.concat(CUSTOM, LOCAL.map(function(p){ var q = Object.assign({}, p); q.local = true; return q; })); }
+function findP(id){ var a = allPassages(); for (var i=0;i<a.length;i++) if (a[i].id===id) return a[i]; return null; }
+function isCustom(id){ return CUSTOM.some(function(p){return p.id===id;}) || LOCAL.some(function(p){return p.id===id;}); }
+function shuffle(a){ a = a.slice(); for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function carryOf(s){ var q = (s.questions||[]).filter(function(x){return x.kind==="carry";})[0]; return q ? q.q : ""; }
+function modeObj(id){ return MODES.filter(function(m){return m.id===id;})[0]; }
+function saveLocal(){ try { localStorage.setItem("qc-local", JSON.stringify(LOCAL)); } catch (e) {} }
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function burst(el, count){
+  if (REDUCED || !el) return;
+  var r = el.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2;
+  var cols = [cssVar("--carry"), cssVar("--sun"), cssVar("--accent"), cssVar("--off"), cssVar("--ans")];
+  for (var i=0;i<count;i++){
+    (function(i){
+      var d = document.createElement("i");
+      d.className = "spark" + (i % 3 === 0 ? " sq" : "");
+      d.style.left = cx + (Math.random()-.5) * r.width * .6 + "px";
+      d.style.top = cy + "px";
+      d.style.background = cols[i % cols.length];
+      document.body.appendChild(d);
+      var a = Math.random() * Math.PI * 2, dist = 50 + Math.random() * 80;
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
+        d.style.transform = "translate(" + Math.cos(a)*dist + "px," + (Math.sin(a)*dist - 30) + "px) rotate(" + (Math.random()*360) + "deg) scale(.4)";
+        d.style.opacity = "0";
+      }); });
+      setTimeout(function(){ d.remove(); }, 800);
+    })(i);
+  }
+}
+
+function sentenceHTML(s, highlight){
+  var t = s.text, R = [];
+  if (highlight && s.answer){ var k = t.indexOf(s.answer); if (k >= 0) R.push({a:k, b:k + s.answer.length, o:'<mark class="ans">', c:'</mark>'}); }
+  (s.signals || []).forEach(function(g){
+    if (!g || !g.w) return;
+    var k = t.indexOf(g.w); if (k < 0) k = t.toLowerCase().indexOf(g.w.toLowerCase()); if (k < 0) return;
+    var e = k + g.w.length;
+    if (R.some(function(r){ return k < r.b && e > r.a; })) return;
+    R.push({a:k, b:e, o:'<span class="sig">', c:'</span>'});
+  });
+  R.sort(function(x, y){ return x.a - y.a; });
+  var out = "", pos = 0;
+  R.forEach(function(r){ out += esc(t.slice(pos, r.a)) + r.o + esc(t.slice(r.a, r.b)) + r.c; pos = r.b; });
+  out += esc(t.slice(pos));
+  return out.replace(/_{3,}/g, '<span class="blank" aria-label="blank"></span>');
+}
+function signalBox(s){
+  var g = (s.signals || []).filter(function(x){ return x && x.w && x.note; });
+  if (!g.length) return "";
+  return '<div class="signal"><span class="sig-label">Signal word' + (g.length > 1 ? 's' : '') + '</span>' + g.map(function(x){ return '<p>' + esc(x.note) + '</p>'; }).join('') + '</div>';
+}
+
+function go(hash){
+  if (location.hash === "#" + hash || (!hash && (location.hash === "" || location.hash === "#"))) route();
+  else location.hash = hash;
+}
+function route(){
+  var h = decodeURIComponent(location.hash.slice(1));
+  if (h === "add-passage"){ if (!E) E = blankEditor(); renderEditor(); }
+  else if (h && findP(h)) startPassage(h);
+  else renderLibrary();
+  window.scrollTo(0,0);
+}
+
+/* ---------- library ---------- */
+function card(p){
+  var custom = isCustom(p.id), del = pendingDelete === p.id;
+  return '<article class="card"><div class="tags"><span class="tag">' + esc(p.skill) + '</span>' + (p.domain ? '<span class="tag ghost">' + esc(p.domain) + '</span>' : '') + '</div>' +
+    '<h3>' + esc(p.title) + '</h3>' + (p.hook ? '<p class="hook">' + esc(p.hook) + '</p>' : '') +
+    '<div class="card-foot"><span class="meta">' + p.sentences.length + ' sentences' + (p.local ? ' · this browser only' : '') + '</span>' +
+    '<span>' + (custom ? '<button class="link" data-action="edit" data-id="' + esc(p.id) + '">Edit</button> <button class="link danger" data-action="del" data-id="' + esc(p.id) + '">' + (del ? 'Confirm delete' : 'Delete') + '</button> ' : '') +
+    '<a class="btn primary" href="#' + encodeURIComponent(p.id) + '">Start</a></span></div></article>';
+}
+function renderLibrary(){
+  S = null;
+  var mine = CUSTOM.concat(LOCAL.map(function(p){ var q = Object.assign({}, p); q.local = true; return q; }));
+  app.innerHTML =
+  '<header class="top"><div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Question Chain</div></header>' +
+  '<main class="lib">' +
+   '<section class="intro"><h1>Every sentence raises a question. Strong readers follow it.</h1>' +
+   '<p>Read one sentence at a time. Before it fades, pick the question it makes you ask. If you pick well, the next sentence answers it, and your questions turn into a map of the passage.</p>' +
+   '<div class="legend"><span class="chip carry">Keeps it moving</span><span class="chip answered">Already answered</span><span class="chip dead">Dead end</span><span class="chip off">Off track</span><span class="chip sigc">Signal word</span></div></section>' +
+   '<section><div class="sec-h"><h2>Choose your mode</h2></div><div class="modes" role="radiogroup" aria-label="Practice mode">' +
+    MODES.map(function(m){ var on = m.id===mode; return '<button class="mode' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" data-action="mode" data-id="' + m.id + '"' + (on && !modeAnim ? ' style="animation:none"' : '') + '><span class="mode-top"><span class="mode-n">' + m.n + '</span>' + m.name + '</span><span class="mode-desc">' + m.desc + '</span></button>'; }).join('') +
+   '</div></section>' +
+   '<section><div class="sec-h"><h2>Practice passages</h2></div><div class="cards">' + BUILTIN.map(card).join('') + '</div></section>' +
+   (mine.length ? '<section><div class="sec-h"><h2>Your passages</h2></div><div class="cards">' + mine.map(card).join('') + '</div></section>' : '') +
+   '<section class="tutor"><div><h2>For tutors</h2><p>Add a passage from the SAT Question Bank or your own materials, then write the question chain for it. Passages you add appear here for anyone you share this page with.</p></div><button class="btn" data-action="add">Add a passage</button></section>' +
+   '<footer class="note">The practice passages were written for this tool in the style of the digital SAT. The researchers and characters in them are fictional.</footer>' +
+  '</main>';
+  modeAnim = false;
+}
+
+/* ---------- reading ---------- */
+function startPassage(id){
+  var p = findP(id);
+  S = {p:p, i:0, thread:[], peeks:0, streak:0, best:0, final:null, mode:mode, left:-1, busy:false, t0:Date.now()};
+  enterSentence();
+  renderReading();
+}
+function enterSentence(){
+  var s = S.p.sentences[S.i];
+  S.picked = null; S.solo = ""; S.ready = false; S.revealed = false; S.anim = null; S.settled = false;
+  S.order = shuffle((s.questions||[]).map(function(_, j){ return j; }));
+}
+function threadHTML(){
+  if (!S.thread.length) return '<p class="hint" style="font-size:.9rem">The questions that keep the passage moving will collect here.</p>';
+  return '<ol>' + S.thread.map(function(t, k){
+    var isNew = S.anim && k === S.thread.length - 1;
+    return '<li class="' + (t.got ? 'got' : '') + (isNew ? ' new' : '') + '"><q>' + esc(t.q) + '</q>' + (t.yours ? '<span class="yours">You asked: ' + esc(t.yours) + '</span>' : '') + '</li>';
+  }).join('') + '</ol>';
+}
+function optionsHTML(s){
+  var picked = S.picked !== null;
+  var html = S.order.map(function(j){
+    var q = s.questions[j], cls = "", lab = "";
+    if (picked){
+      if (j === S.picked){ cls = " k-" + q.kind + (S.anim ? (q.kind === "carry" ? " pop" : " wiggle") : ""); lab = KIND[q.kind]; }
+      else if (q.kind === "carry"){ cls = " k-carry" + (S.anim ? " glow" : ""); lab = KIND.carry; }
+      else cls = " dim";
+    }
+    return '<button class="opt' + cls + '" data-action="pick" data-j="' + j + '"' + (picked ? ' disabled' : '') + '><span>' + esc(q.q) + '</span>' + (lab ? '<span class="lab">' + lab + '</span>' : '') + '</button>';
+  }).join('');
+  var fb = "";
+  if (picked){
+    var q = s.questions[S.picked];
+    var note = q.note ? esc(q.note) : "";
+    if (q.kind !== "carry"){
+      var c = s.questions.filter(function(x){ return x.kind === "carry"; })[0];
+      if (c) note += (note ? " " : "") + "The question that keeps it moving: <q>" + esc(c.q) + "</q>";
+    }
+    fb = '<div class="fb ' + q.kind + '"><b>' + KIND_HEAD[q.kind] + '</b><span>' + note + '</span></div>' + signalBox(s);
+  }
+  return '<div class="opts' + (S.settled ? ' settled' : '') + '">' + html + '</div>' + fb;
+}
+function askHTML(){
+  var p = S.p, s = p.sentences[S.i], last = S.i === p.sentences.length - 1;
+  if (last || !(s.questions && s.questions.length)){
+    return '<div class="ask"><p class="ask-h">That’s the whole passage.</p><p class="ask-sub" style="margin:0">Look over your thread first. It’s the outline of what you just read.</p>' + signalBox(s) + '<div><button class="btn primary" data-action="final">Go to the question →</button></div></div>';
+  }
+  var picked = S.picked !== null;
+  var nextBtn = '<div class="row"><span></span><button class="btn primary" data-action="next" id="nextBtn"' + (S.mode === "solo" && !S.ready ? ' disabled' : '') + '>Next sentence ↓</button></div>';
+
+  if (S.mode === "solo"){
+    return '<div class="ask"><p class="ask-h"><span class="emo" aria-hidden="true">\uD83E\uDD14</span><label for="soloQ">Pause. What does this make you ask?</label></p>' +
+      '<p class="ask-sub">Type it, or just say it in your head. The next sentence will show you what the passage answered.</p>' +
+      '<textarea id="soloQ" rows="2" placeholder="Why did they…? So what…? Is that the whole story?">' + esc(S.solo) + '</textarea>' + nextBtn + '</div>';
+  }
+  if (S.mode === "think" && !S.revealed){
+    return '<div class="ask"><div class="think"><div class="ring-wrap"><svg class="ring" viewBox="0 0 54 54" aria-hidden="true"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" cx="27" cy="27" r="22"/></svg><span class="emo" aria-hidden="true">\uD83E\uDD14</span></div>' +
+      '<div><p class="ask-h">Think of your question first.</p><p class="ask-sub" style="margin:2px 0 0">What would you want the next sentence to tell you?</p></div></div>' +
+      '<div class="row"><span></span><button class="btn primary" data-action="showopts" id="showBtn"' + (S.ready ? '' : ' disabled') + '>I have one. Show the options</button></div></div>';
+  }
+  return '<div class="ask"><p class="ask-h">' + (S.picked === null ? '<span class="emo" aria-hidden="true">\uD83E\uDD14</span>' : '') + (S.mode === "think" ? 'Which is closest to yours?' : 'What does this make you ask?') + '</p>' + optionsHTML(s) + (picked ? nextBtn : '') + '</div>';
+}
+function dotsHTML(n, i){
+  if (n > 12) return '';
+  var h = '<span class="dots" aria-hidden="true">';
+  for (var k=0;k<n;k++) h += '<i class="' + (k < i ? 'done' : (k === i ? 'now' : '')) + '"></i>';
+  return h + '</span>';
+}
+function nextPassageId(){
+  var list = allPassages(), idx = -1;
+  for (var x=0;x<list.length;x++) if (list[x].id===S.p.id) idx = x;
+  var np = list[(idx+1) % list.length];
+  return np && np.id !== S.p.id ? np.id : null;
+}
+function headerHTML(title, i, n, label){
+  var nid = nextPassageId();
+  return '<header class="top"><button class="back" data-action="home">← Passages</button><div class="ttl">' + esc(title) + '</div><div class="hud">' +
+    '<span class="pill">' + modeObj(S.mode).name + '</span>' + dotsHTML(n, i) + '<span>' + label + '</span>' + (nid ? '<a class="btn skip" href="#' + encodeURIComponent(nid) + '">Next passage \u2192</a>' : '') + '</div></header>';
+}
+function renderReading(){
+  var p = S.p, i = S.i, s = p.sentences[i], n = p.sentences.length;
+  var trail = p.sentences.slice(0, i).map(function(t, k){
+    return '<button class="trail-s' + (k === S.left ? ' just-left' : '') + '" data-action="peek" data-k="' + k + '" aria-label="Peek back at sentence ' + (k+1) + '"><span class="num">' + (k+1) + '</span><span class="tx">' + sentenceHTML(t, false) + '</span></button>';
+  }).join('');
+  var cap = "";
+  if (i > 0){
+    var prev = carryOf(p.sentences[i-1]);
+    if (s.answer && prev) cap = '<div class="answers"' + (S.left === -1 ? ' style="animation:none"' : '') + '>' + ARROW + 'Answers <q>' + esc(prev) + '</q></div>';
+    else if (prev) cap = '<div class="answers muted"' + (S.left === -1 ? ' style="animation:none"' : '') + '>' + ARROW + 'Keep <q>' + esc(prev) + '</q> in mind</div>';
+  }
+  var fresh = S.left !== -1 || S.i === 0 && !S.thread.length && S.picked === null;
+  var carried = S.thread.filter(function(t){return t.got;}).length;
+  var lastS = i === n - 1 || !(s.questions && s.questions.length);
+  var sigsOn = S.picked !== null || lastS || (S.mode === "solo" && S.ready);
+  app.innerHTML = headerHTML(p.title, i, n, (i+1) + ' / ' + n) +
+   '<main class="read"><div class="col">' +
+     (trail ? '<div class="trail">' + trail + '<p class="trail-hint">Earlier sentences fade. Tap one to peek back.</p></div>' : '') +
+     cap +
+     '<div class="current' + (sigsOn ? ' sigs-on' : '') + '" id="cur"' + (fresh ? '' : ' style="animation:none"') + '><span class="num">' + (i+1) + '</span><p class="sent">' + sentenceHTML(s, i > 0) + '</p></div>' +
+     askHTML() +
+   '</div>' +
+   '<aside class="thread" aria-label="Your thread"><h2>Your thread</h2>' + threadHTML() +
+     '<div class="stat">' + (S.mode !== "solo" ? 'Kept it moving: ' + carried + ' of ' + S.thread.length + ' · ' : '') + 'Peeks back: <b id="peekN">' + S.peeks + '</b></div></aside>' +
+   '</main>';
+  if (!fresh){
+    var ask = app.querySelector(".ask"); if (ask) ask.style.animation = "none";
+    var mk = app.querySelector("mark.ans"); if (mk){ mk.style.animation = "none"; mk.style.backgroundSize = "100% 100%"; }
+  }
+  if (S.anim === "pick"){
+
+  }
+  S.left = -1; S.anim = null; S.bump = false;
+  if ((S.mode === "solo" || S.mode === "think") && !S.ready && i < n - 1 && S.picked === null){
+    var at = S.i;
+    setTimeout(function(){
+      if (!S || S.i !== at || S.final) return;
+      S.ready = true;
+      if (S.mode === "solo"){
+        var cur = document.getElementById("cur"); if (cur) cur.classList.add("sigs-on");
+        var box = signalBox(S.p.sentences[S.i]), row = app.querySelector(".ask .row");
+        if (box && row) row.insertAdjacentHTML("beforebegin", box);
+      }
+      var b = document.getElementById("nextBtn") || document.getElementById("showBtn");
+      if (b){ b.disabled = false; if (!REDUCED){ b.style.animation = "bump .5s var(--spring)"; } }
+    }, REDUCED ? 1500 : 3000);
+  }
+}
+function nextSentence(){
+  if (S.busy) return;
+  var s = S.p.sentences[S.i];
+  if (S.mode === "solo"){
+    var ta = document.getElementById("soloQ");
+    var yours = ta ? ta.value.trim() : "";
+    var c = carryOf(s);
+    if (c) S.thread.push({q:c, yours:yours, got:false});
+  }
+  var doIt = function(){
+    S.busy = false;
+    S.left = S.i;
+    S.i++;
+    enterSentence();
+    renderReading();
+    var cur = document.getElementById("cur");
+    if (cur){ var r = cur.getBoundingClientRect(); if (r.top < 80 || r.top > window.innerHeight * 0.55) window.scrollTo({top: window.scrollY + r.top - 160, behavior: REDUCED ? "auto" : "smooth"}); }
+  };
+  var cur = document.getElementById("cur");
+  if (cur && !REDUCED){ S.busy = true; cur.classList.add("leaving"); var ask = app.querySelector(".ask"); if (ask){ ask.style.transition = "opacity .25s"; ask.style.opacity = "0"; } setTimeout(doIt, 270); }
+  else doIt();
+}
+function pick(j){
+  var s = S.p.sentences[S.i];
+  S.picked = j;
+  var got = s.questions[j].kind === "carry";
+  S.thread.push({q:carryOf(s), got:got});
+  if (got){ S.streak++; S.best = Math.max(S.best, S.streak); S.bump = S.streak >= 2; } else S.streak = 0;
+  S.anim = "pick";
+  S.settled = true;
+  renderReading();
+  var b = document.getElementById("nextBtn"); if (b) b.focus({preventScroll:true});
+}
+
+/* ---------- final ---------- */
+function renderFinal(anim){
+  var p = S.p, Q = p.question, F = S.final;
+  var nextMode = S.mode === "guided" ? "think" : "solo";
+  var carried = S.thread.filter(function(t){return t.got;}).length;
+  var list = allPassages(), idx = -1;
+  for (var x=0;x<list.length;x++) if (list[x].id===p.id) idx = x;
+  var nextP = list[(idx+1) % list.length];
+  var qHTML;
+  if (!F.revealed){
+    qHTML = '<div class="field"><label for="predict">Predict first. In a few words, what should the right answer say?</label><textarea id="predict" rows="2" placeholder="Use your thread.">' + esc(F.predict) + '</textarea></div><div><button class="btn primary" data-action="reveal">Show answer choices</button></div>';
+  } else {
+    qHTML = (F.predict ? '<p class="your-pred">Your prediction: <b>' + esc(F.predict) + '</b></p>' : '') +
+     '<div class="choices' + (F.pick !== null ? ' settled' : '') + '">' + Q.choices.map(function(c, k){
+        var cls = "";
+        if (F.pick !== null){ if (k === Q.correct) cls = " right" + (anim && k === F.pick ? " pop" : ""); else if (k === F.pick) cls = " wrong" + (anim ? " wiggle" : ""); else cls = " dim"; }
+        return '<button class="choice' + cls + '" data-action="choose" data-k="' + k + '"' + (F.pick !== null ? ' disabled' : '') + '><span class="letter">' + "ABCD"[k] + '</span><span>' + esc(c) + '</span></button>';
+     }).join('') + '</div>';
+    if (F.pick !== null){
+      var ok = F.pick === Q.correct;
+      qHTML += '<p class="verdict ' + (ok ? 'right' : 'wrong') + '">' + (ok ? 'Correct.' : 'Not this time. The answer is ' + "ABCD"[Q.correct] + '.') + '</p>' +
+        (Q.explanation ? '<p class="expl">' + esc(Q.explanation) + '</p>' : '') +
+        '<div class="stats">' + (S.mode !== "solo" ? '<span class="stat-chip">Kept it moving: ' + carried + ' of ' + S.thread.length + '</span><span class="stat-chip">Best streak: ' + S.best + '</span>' : '') + '<span class="stat-chip">Peeks back: ' + S.peeks + '</span></div>' +
+        '<div class="row"><span style="display:flex;gap:10px;flex-wrap:wrap">' +
+          (S.mode !== "solo" ? '<button class="btn" data-action="retry" data-mode="' + nextMode + '">Try it in ' + modeObj(nextMode).name + '</button>' : '<button class="btn" data-action="retry" data-mode="solo">Read it again</button>') +
+          '<button class="btn" data-action="home">All passages</button></span>' +
+          (nextP && nextP.id !== p.id ? '<a class="btn primary" href="#' + encodeURIComponent(nextP.id) + '">Next passage →</a>' : '') + '</div>';
+    }
+  }
+  app.innerHTML = headerHTML(p.title, p.sentences.length, p.sentences.length, 'Question') +
+   '<main class="final">' +
+    (S.thread.length ? '<section class="panel"><h2>Your thread</h2><ol class="chain">' + S.thread.map(function(t){ return '<li class="' + (t.got?'got':'') + '"><span>' + esc(t.q) + '</span>' + (t.yours ? '<span class="yours">You asked: ' + esc(t.yours) + '</span>' : '') + '</li>'; }).join('') + '</ol><p class="hint">Each question is answered by the sentence after it. That chain is the passage’s structure, which is what purpose, main idea, and inference questions test.</p></section>' : '') +
+    '<section class="panel"><h2>The passage</h2><p class="full sigs-on">' + p.sentences.map(function(s, k){ return '<span' + (Q.underline === k ? ' class="ul"' : '') + '>' + sentenceHTML(s, false) + '</span>'; }).join(' ') + '</p><p class="hint">Purple words are signal words: the words that told you which question to ask.</p></section>' +
+    '<section class="panel"><p class="qprompt">' + esc(Q.prompt) + '</p>' + qHTML + '</section>' +
+   '</main>';
+  if (F.started) app.querySelectorAll(".panel").forEach(function(el){ el.style.animation = "none"; });
+  F.started = true;
+}
+
+/* ---------- editor ---------- */
+function blankOpt(kind){ return {q:"", kind:kind, note:""}; }
+function blankStep(){ return {answer:"", sigW:"", sigN:"", opts:[blankOpt("carry"), blankOpt("answered"), blankOpt("dead")]}; }
+function blankEditor(){ return {id:null, title:"", skill:"Inferences", domain:"Science", hook:"", text:"", steps:[], q:{prompt:"", choices:["","","",""], correct:0, explanation:"", underline:""}, built:false, importText:""}; }
+function fromPassage(p){
+  return {id:p.id, title:p.title||"", skill:p.skill||"Other", domain:p.domain||"Science", hook:p.hook||"",
+    text:p.sentences.map(function(s){return s.text;}).join("\n"),
+    steps:p.sentences.map(function(s){
+      var qs = (s.questions||[]).slice();
+      qs.sort(function(a,b){ return (a.kind==="carry"?0:1) - (b.kind==="carry"?0:1); });
+      var opts = [0,1,2].map(function(k){ var q = qs[k]; return q ? {q:q.q||"", kind:q.kind||(k?"dead":"carry"), note:q.note||""} : blankOpt(k ? (k===1?"answered":"dead") : "carry"); });
+      var g = (s.signals||[])[0] || {};
+      return {answer:s.answer||"", sigW:g.w||"", sigN:g.note||"", opts:opts};
+    }),
+    q:{prompt:p.question.prompt||"", choices:(p.question.choices||[]).slice(0,4).concat(["","","",""]).slice(0,4), correct:p.question.correct||0, explanation:p.question.explanation||"", underline:(p.question.underline==null?"":String(p.question.underline+1))},
+    built:true, importText:""};
+}
+function lines(){ return E.text.split("\n").map(function(l){return l.trim();}).filter(Boolean); }
+function splitSentences(t){
+  return t.replace(/\s+/g, " ").trim().split(/(?<=[.!?]["”’)]?)\s+(?=["“(A-Z0-9])/).filter(Boolean);
+}
+function inp(bind, val, ph, id){ return '<input type="text" id="' + id + '" data-bind="' + bind + '" value="' + esc(val) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '>'; }
+function sel(bind, val, opts, id, labels){ return '<select id="' + id + '" data-bind="' + bind + '">' + opts.map(function(o){ return '<option value="' + esc(o) + '"' + (o===val?' selected':'') + '>' + esc(labels ? labels[o] : o) + '</option>'; }).join('') + '</select>'; }
+function stepsHTML(){
+  if (!E.built) return '';
+  var L = lines();
+  return '<section class="panel"><h2>Question steps</h2><p class="hint">For each sentence, mark an optional signal word (however, yet, for instance, since) and say what it tells the reader. Then write a short question the next sentence answers (keeps it moving), plus two others: one the sentence already answered, one the passage never answers, or one that drifts off track. The note is what students see after they pick, so say why.</p>' +
+   L.map(function(t, k){
+     var st = E.steps[k] || (E.steps[k] = blankStep());
+     var last = k === L.length - 1;
+     var optEd = function(m){
+       var o = st.opts[m], base = "steps." + k + ".opts." + m, id = "f-" + k + "-" + m;
+       return '<div class="opt-ed' + (m === 0 ? ' carry' : '') + '"><div class="two">' +
+         (m === 0 ? '<label class="k carry" for="' + id + 'q" style="font-weight:800;font-size:.85rem;align-self:center">Keeps it moving</label>'
+                  : sel(base + ".kind", o.kind, ["answered","dead","off"], id + "k", KIND)) +
+         inp(base + ".q", o.q, m === 0 ? "Answered by sentence " + (k+2) : "Short question", id + "q") + '</div>' +
+         inp(base + ".note", o.note, "Why? (shown after a student picks this)", id + "n") + '</div>';
+     };
+     return '<div class="step"><p class="step-s"><span class="num">' + (k+1) + '</span>' + esc(t) + '</p>' +
+      '<div class="qrow"><label class="k" for="f-sw' + k + '" style="color:var(--accent)">Signal word</label>' + inp("steps."+k+".sigW", st.sigW, "Optional: exact words, like However or For instance", "f-sw"+k) + '</div>' +
+      '<div class="qrow"><label class="k" for="f-sn' + k + '" style="color:var(--accent)">What it signals</label>' + inp("steps."+k+".sigN", st.sigN, "Shown after the student responds", "f-sn"+k) + '</div>' +
+      (k > 0 ? '<div class="qrow"><label class="k" for="f-a' + k + '">Answer words</label>' + inp("steps."+k+".answer", st.answer, "Exact words here that answer the previous question", "f-a"+k) + '</div>' : '') +
+      (!last ? optEd(0) + optEd(1) + optEd(2) : '<p class="hint">Last sentence: no question needed. Students go to the SAT question next.</p>') +
+     '</div>';
+   }).join('') + '</section>';
+}
+function renderEditor(){
+  S = null;
+  var Q = E.q;
+  app.innerHTML =
+  '<header class="top"><button class="back" data-action="home">← Passages</button><div class="ttl">' + (E.id ? 'Edit passage' : 'Add a passage') + '</div></header>' +
+  '<main class="ed">' +
+   '<div><h1>' + (E.id ? 'Edit passage' : 'Add a passage') + '</h1><p class="lede">Paste a passage from the SAT Question Bank or your own materials. The best ones have a clear chain: each sentence raises a question the next one answers.</p></div>' +
+   (edMsg ? '<p class="status' + (edMsg.err ? ' err' : '') + '" role="status">' + esc(edMsg.text) + '</p>' : '') +
+   '<section class="panel"><h2>Details</h2>' +
+    '<div class="field"><label for="f-title">Title</label>' + inp("title", E.title, "A short name students will see", "f-title") + '</div>' +
+    '<div class="grid2"><div class="field"><label for="f-skill">SAT skill</label>' + sel("skill", E.skill, SKILLS, "f-skill") + '</div>' +
+    '<div class="field"><label for="f-domain">Subject</label>' + sel("domain", E.domain, DOMAINS, "f-domain") + '</div></div>' +
+    '<div class="field"><label for="f-hook">Teaser (optional)</label>' + inp("hook", E.hook, "One line that makes a student curious", "f-hook") + '</div>' +
+   '</section>' +
+   '<section class="panel"><h2>Passage</h2>' +
+    '<div class="field"><label for="f-text">One sentence per line</label><textarea id="f-text" data-bind="text" rows="8" placeholder="Paste the passage, then split it into sentences.">' + esc(E.text) + '</textarea>' +
+    '<p class="hint">Use ______ (six underscores) for a fill-in blank.</p></div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-action="split">Split into sentences</button><button class="btn primary" data-action="steps">' + (E.built ? 'Update question steps' : 'Set up question steps') + '</button></div>' +
+   '</section>' +
+   stepsHTML() +
+   '<section class="panel"><h2>SAT question</h2>' +
+    '<div class="field"><label for="f-prompt">Question</label>' + inp("q.prompt", Q.prompt, "Which choice best states the main idea of the text?", "f-prompt") + '</div>' +
+    [0,1,2,3].map(function(k){ return '<div class="qrow"><label class="chk" for="f-ch' + k + '"><input type="radio" name="correct" data-bind="q.correct" value="' + k + '"' + (Number(Q.correct)===k?' checked':'') + ' aria-label="Mark ' + "ABCD"[k] + ' as correct"> Choice ' + "ABCD"[k] + '</label>' + inp("q.choices."+k, Q.choices[k], "", "f-ch"+k) + '</div>'; }).join('') +
+    '<p class="hint">Select the circle next to the correct choice.</p>' +
+    '<div class="field"><label for="f-expl">Explanation</label><textarea id="f-expl" data-bind="q.explanation" rows="3" placeholder="Tie the answer back to the question chain.">' + esc(Q.explanation) + '</textarea></div>' +
+    '<div class="field"><label for="f-ul">Underlined sentence number (optional)</label>' + inp("q.underline", Q.underline, "For example, 3", "f-ul") + '</div>' +
+   '</section>' +
+   '<div class="row"><button class="btn" data-action="home">Cancel</button><button class="btn primary" data-action="save">Save passage</button></div>' +
+   '<section class="panel"><h2>Backup</h2><p class="hint">Copy this passage as text to keep a backup or move it to another page, or paste a copied passage to load it here.</p>' +
+    '<textarea id="f-import" data-bind="importText" rows="3" placeholder="Paste a copied passage here">' + esc(E.importText) + '</textarea>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-action="copyjson">Copy this passage</button><button class="btn" data-action="importjson">Load pasted passage</button></div></section>' +
+  '</main>';
+}
+function setPath(obj, path, val){
+  var parts = path.split("."), o = obj;
+  for (var i=0;i<parts.length-1;i++) o = o[parts[i]];
+  o[parts[parts.length-1]] = val;
+}
+function buildPassage(){
+  var L = lines(), errs = [];
+  if (!E.title.trim()) errs.push("Add a title.");
+  if (L.length < 2) errs.push("The passage needs at least two sentences, one per line.");
+  if (!E.built) errs.push("Click “Set up question steps” and fill them in.");
+  var sentences = L.map(function(t, k){
+    var st = E.steps[k] || blankStep(), last = k === L.length - 1;
+    var s = {text:t};
+    if (k > 0 && st.answer && st.answer.trim()){
+      s.answer = st.answer.trim();
+      if (t.indexOf(s.answer) < 0) errs.push("Sentence " + (k+1) + ": the answer words don’t match the sentence exactly.");
+    }
+    if (st.sigW && st.sigW.trim()){
+      var w = st.sigW.trim();
+      if (t.toLowerCase().indexOf(w.toLowerCase()) < 0) errs.push("Sentence " + (k+1) + ": the signal word doesn’t appear in the sentence.");
+      s.signals = [{w:w, note:(st.sigN||"").trim()}];
+    }
+    if (!last){
+      if (st.opts.some(function(o){ return !o.q.trim(); })) errs.push("Sentence " + (k+1) + ": fill in all three questions.");
+      s.questions = st.opts.map(function(o, m){ return {q:o.q.trim(), kind:m === 0 ? "carry" : o.kind, note:o.note.trim()}; });
+    }
+    return s;
+  });
+  var Q = E.q;
+  if (!Q.prompt.trim()) errs.push("Add the SAT question.");
+  if (Q.choices.some(function(c){return !c.trim();})) errs.push("Fill in all four answer choices.");
+  var ul = parseInt(Q.underline, 10);
+  var question = {prompt:Q.prompt.trim(), choices:Q.choices.map(function(c){return c.trim();}), correct:Number(Q.correct)||0, explanation:Q.explanation.trim()};
+  if (!isNaN(ul) && ul >= 1 && ul <= L.length) question.underline = ul - 1;
+  var id = E.id || ("c-" + (E.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "passage") + "-" + Date.now().toString(36));
+  return {errs:errs, p:{id:id, title:E.title.trim(), skill:E.skill, domain:E.domain, hook:E.hook.trim(), sentences:sentences, question:question}};
+}
+function upsert(list, p){ var out = list.filter(function(x){return x.id!==p.id;}); out.push(p); return out; }
+function buildDoc(list){
+  var SC = "<" + "/script>";
+  var css = document.getElementById("app-style").textContent;
+  var js = document.getElementById("app-js").textContent;
+  var data = JSON.stringify(list).replace(/</g, "\\u003c");
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Question Chain</title>\n' +
+   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="' + FONT_HREF.replace(/&/g, "&amp;") + '" rel="stylesheet">\n' +
+   '<style id="app-style">' + css + '</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="custom-data">' + data + SC + '\n<script id="app-js">' + js + SC + '\n</body>\n</html>\n';
+}
+function publishCustom(list){
+  var c = window.claude;
+  if (!c || typeof c.use !== "function") return Promise.resolve({ok:false, why:"unavailable"});
+  return c.use("artifact").then(function(art){
+    if (!art) return {ok:false, why:"unavailable"};
+    return art.publish(buildDoc(list)).then(function(){ return {ok:true}; });
+  }).catch(function(e){ return {ok:false, why:(e && (e.code || e.message)) || "error"}; });
+}
+function libNote(text, err){
+  var n = document.createElement("p"); n.className = "status" + (err ? " err" : ""); n.setAttribute("role","status"); n.textContent = text;
+  var lib = document.querySelector(".lib"); if (lib) lib.insertBefore(n, lib.firstChild);
+}
+function savePassage(){
+  var r = buildPassage();
+  if (r.errs.length){ edMsg = {err:true, text:r.errs.slice(0,4).join(" ") + (r.errs.length > 4 ? " (" + (r.errs.length-4) + " more)" : "")}; renderEditor(); window.scrollTo(0,0); return; }
+  var p = r.p;
+  edMsg = {err:false, text:"Saving…"}; renderEditor(); window.scrollTo(0,0);
+  publishCustom(upsert(CUSTOM, p)).then(function(res){
+    if (res.ok){
+      LOCAL = LOCAL.filter(function(x){return x.id!==p.id;}); saveLocal();
+      edMsg = {err:false, text:"Saved for everyone who opens this page. The page is reloading with your passage."};
+      renderEditor();
+    } else {
+      LOCAL = upsert(LOCAL, p); saveLocal();
+      edMsg = null; E = null; pendingDelete = null;
+      go("");
+      libNote("Saved in this browser only. Only the page’s owner can add passages for everyone; use Copy this passage to send it to them.");
+    }
+  });
+}
+function deletePassage(id){
+  if (LOCAL.some(function(x){return x.id===id;})){ LOCAL = LOCAL.filter(function(x){return x.id!==id;}); saveLocal(); pendingDelete = null; renderLibrary(); return; }
+  publishCustom(CUSTOM.filter(function(x){return x.id!==id;})).then(function(res){
+    pendingDelete = null;
+    if (!res.ok){ renderLibrary(); libNote("Couldn’t delete it. Only the page’s owner can remove shared passages.", true); }
+  });
+}
+
+/* ---------- events ---------- */
+app.addEventListener("click", function(e){
+  var b = e.target.closest("[data-action]"); if (!b) return;
+  var a = b.getAttribute("data-action");
+  if (a === "mode"){ mode = b.getAttribute("data-id"); try { localStorage.setItem("qc-mode", mode); } catch (x) {} modeAnim = true; renderLibrary(); var m = document.querySelector('.mode[data-id="' + mode + '"]'); if (m) m.focus(); }
+  else if (a === "home"){ E = null; edMsg = null; go(""); }
+  else if (a === "pick"){ if (S.picked === null) pick(Number(b.getAttribute("data-j"))); }
+  else if (a === "next"){ if (!b.disabled) nextSentence(); }
+  else if (a === "showopts"){ if (!b.disabled){ S.revealed = true; renderReading(); } }
+  else if (a === "peek"){
+    if (b.classList.contains("peek")) return;
+    b.classList.add("peek"); S.peeks++; var pn = document.getElementById("peekN"); if (pn) pn.textContent = S.peeks;
+    setTimeout(function(){ b.classList.remove("peek"); }, 2600);
+  }
+  else if (a === "final"){ S.final = {revealed:false, pick:null, predict:""}; renderFinal(false); window.scrollTo(0,0); }
+  else if (a === "reveal"){ var pr = document.getElementById("predict"); S.final.predict = pr ? pr.value.trim() : ""; S.final.revealed = true; renderFinal(false); }
+  else if (a === "choose"){ if (S.final.pick === null){ S.final.pick = Number(b.getAttribute("data-k")); renderFinal(true); } }
+  else if (a === "retry"){ mode = b.getAttribute("data-mode"); try { localStorage.setItem("qc-mode", mode); } catch (x) {} startPassage(S.p.id); window.scrollTo(0,0); }
+  else if (a === "add"){ E = blankEditor(); edMsg = null; go("add-passage"); }
+  else if (a === "edit"){ var p = findP(b.getAttribute("data-id")); if (p){ E = fromPassage(p); edMsg = null; go("add-passage"); } }
+  else if (a === "del"){ var id = b.getAttribute("data-id"); if (pendingDelete === id) deletePassage(id); else { pendingDelete = id; renderLibrary(); } }
+  else if (a === "split"){ E.text = splitSentences(E.text).join("\n"); renderEditor(); }
+  else if (a === "steps"){ E.built = true; renderEditor(); var st = document.querySelector(".step"); if (st) st.scrollIntoView({behavior: REDUCED ? "auto" : "smooth", block:"start"}); }
+  else if (a === "save"){ savePassage(); }
+  else if (a === "copyjson"){
+    var r = buildPassage();
+    var txt = JSON.stringify(r.p);
+    var done = function(ok){ edMsg = ok ? {err:false, text:"Copied. Paste it anywhere to keep a backup."} : {err:true, text:"Your browser blocked copying. The passage is in the Backup box below; select it and copy it by hand."}; if (!ok) E.importText = txt; renderEditor(); };
+    try { navigator.clipboard.writeText(txt).then(function(){done(true);}, function(){done(false);}); } catch (x) { done(false); }
+  }
+  else if (a === "importjson"){
+    try { var obj = JSON.parse(E.importText); if (!obj || !obj.sentences || !obj.question) throw 0; var keepId = E.id; E = fromPassage(obj); E.id = keepId; edMsg = {err:false, text:"Loaded. Check it over, then save."}; }
+    catch (x) { edMsg = {err:true, text:"That text isn’t a copied passage. Use Copy this passage on another page, then paste the result here."}; }
+    renderEditor();
+  }
+});
+function onField(e){
+  var t = e.target;
+  if (t.id === "soloQ" && S) S.solo = t.value;
+  var bind = t.getAttribute && t.getAttribute("data-bind");
+  if (bind && E) setPath(E, bind, t.type === "radio" ? Number(t.value) : t.value);
+}
+app.addEventListener("input", onField);
+app.addEventListener("change", onField);
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
